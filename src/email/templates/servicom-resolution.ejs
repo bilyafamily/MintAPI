@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NMDPRA Servicom</title>
+    <style>
+      @media only screen and (max-width: 600px) {
+        .container {
+          width: 100% !important;
+        }
+        .content {
+          padding: 20px !important;
+        }
+        .resolution-box {
+          padding: 15px !important;
+        }
+      }
+
+      .resolution-box {
+        background-color: #f8f9fa;
+        border-left: 4px solid #00a86b;
+        padding: 20px;
+        margin: 20px 0;
+        border-radius: 0 4px 4px 0;
+      }
+    </style>
+  </head>
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+    "
+  >
+    <table
+      role="presentation"
+      cellspacing="0"
+      cellpadding="0"
+      border="0"
+      width="100%"
+    >
+      <tr>
+        <td style="padding: 20px 0">
+          <table
+            role="presentation"
+            cellspacing="0"
+            cellpadding="0"
+            border="0"
+            width="600"
+            style="margin: auto"
+            class="container"
+          >
+            <!-- Green header strip -->
+            <tr>
+              <td style="background-color: #00a86b; height: 5px"></td>
+            </tr>
+
+            <!-- Logo and title section -->
+            <tr>
+              <td
+                style="background-color: #ffffff; padding: 20px 40px"
+                align="center"
+              >
+                <img
+                  src="https://www.nmdpra.gov.ng/nmdpraimages/nmdpraLogo.png"
+                  alt="NMDPRA Logo"
+                  style="max-width: 80px; width: 100%"
+                  class="logo"
+                />
+                <h1
+                  style="
+                    color: #00a86b;
+                    font-size: 22px;
+                    margin-top: 10px;
+                    margin-bottom: 0;
+                  "
+                >
+                  NMDPRA SERVICOM
+                </h1>
+                <p style="color: #666666; font-size: 14px; margin-top: 5px">
+                  Service Excellence Through Efficient Complaint Management
+                </p>
+              </td>
+            </tr>
+
+            <!-- Email content -->
+            <tr>
+              <td
+                style="background-color: #ffffff; padding: 40px"
+                class="content"
+              >
+                <p style="margin: 0; font-size: 16px; color: #333333">
+                  Dear <%= name %>,
+                </p>
+
+                <p
+                  style="
+                    margin-top: 20px;
+                    font-size: 16px;
+                    line-height: 1.5;
+                    color: #333333;
+                  "
+                >
+                  We're pleased to inform you that your ticket with
+                  <strong>Ref No: <%= ticketRef %></strong> has been
+                  successfully resolved.
+                </p>
+
+                <!-- Resolution box with improved styling -->
+                <div class="resolution-box">
+                  <h3 style="margin-top: 0; color: #00a86b; font-size: 18px">
+                    Resolution Details
+                  </h3>
+                  <p
+                    style="
+                      margin-bottom: 0;
+                      font-size: 15px;
+                      line-height: 1.6;
+                      color: #333333;
+                    "
+                  >
+                    <%= resolution %>
+                  </p>
+                </div>
+
+                <p
+                  style="
+                    margin-top: 20px;
+                    font-size: 16px;
+                    line-height: 1.5;
+                    color: #333333;
+                  "
+                >
+                  You can view the full details of your ticket by clicking the
+                  button below:
+                </p>
+
+                <!-- View button -->
+                <p style="margin-top: 30px; text-align: center">
+                  <a
+                    href="https://icy-stone-09e6e4e03.2.azurestaticapps.net/user/tickets/<%= ticketId %>"
+                    style="
+                      background-color: #00a86b;
+                      color: #ffffff;
+                      padding: 12px 24px;
+                      text-decoration: none;
+                      font-weight: bold;
+                      display: inline-block;
+                      border-radius: 4px;
+                      font-size: 16px;
+                    "
+                  >
+                    View Ticket Details
+                  </a>
+                </p>
+
+                <!-- Closing -->
+                <p
+                  style="
+                    margin-top: 30px;
+                    font-size: 16px;
+                    line-height: 1.5;
+                    color: #333333;
+                  "
+                >
+                  Should you have any further questions or require additional
+                  assistance, please don't hesitate to contact us.
+                </p>
+
+                <p
+                  style="
+                    margin-top: 30px;
+                    font-size: 16px;
+                    line-height: 1.5;
+                    color: #333333;
+                  "
+                >
+                  Best regards,<br />
+                  <strong style="color: #00a86b">NMDPRA SERVICOM TEAM</strong>
+                </p>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td
+                style="
+                  background-color: #f8f9fa;
+                  padding: 15px 40px;
+                  text-align: center;
+                  font-size: 12px;
+                  color: #666666;
+                "
+              >
+                © <%= new Date().getFullYear() %> NMDPRA SERVICOM. All rights
+                reserved.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

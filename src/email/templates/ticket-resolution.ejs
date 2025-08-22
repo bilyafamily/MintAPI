@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TICKET RESOLUTION - MINT</title>
+    <style>
+      @media only screen and (max-width: 600px) {
+        .container {
+          width: 100% !important;
+        }
+        .content {
+          padding: 20px !important;
+        }
+      }
+    </style>
+  </head>
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+    "
+  >
+    <table
+      role="presentation"
+      cellspacing="0"
+      cellpadding="0"
+      border="0"
+      width="100%"
+    >
+      <tr>
+        <td style="padding: 20px 0">
+          <table
+            role="presentation"
+            cellspacing="0"
+            cellpadding="0"
+            border="0"
+            width="600"
+            style="margin: auto"
+            class="container"
+          >
+            <tr>
+              <td style="background-color: #00a86b; height: 5px"></td>
+            </tr>
+            <tr>
+              <td
+                style="background-color: #ffffff; padding: 20px 40px"
+                align="center"
+              >
+                <img
+                  src="https://nmdpraleavefiles.blob.core.windows.net/inspection/mintlogo.jpeg"
+                  alt="mint Logo"
+                  style="max-width: 80px; width: 100%"
+                  class="logo"
+                />
+              </td>
+            </tr>
+            <tr>
+              <td
+                style="background-color: #ffffff; padding: 40px"
+                class="content"
+              >
+                <p style="margin: 0; font-size: 16px; color: #333333">
+                  Dear <%= name %>,
+                </p>
+                <p
+                  style="
+                    margin-top: 20px;
+                    font-size: 16px;
+                    line-height: 1.5;
+                    color: #333333;
+                  "
+                >
+                  Your ticket with Ref No: <%= ticketRef %> has been resolved
+                </p>
+                <p
+                  style="
+                    margin-top: 20px;
+                    font-size: 16px;
+                    line-height: 1.5;
+                    color: #333333;
+                  "
+                >
+                  <%= comment %>
+                </p>
+                <p style="margin-top: 30px; text-align: center">
+                  <a
+                    href="https://helpdesk.nmdpra.gov.ng/tickets/<%= ticketId %>"
+                    style="
+                      background-color: #00a86b;
+                      color: #ffffff;
+                      padding: 12px 24px;
+                      text-decoration: none;
+                      font-weight: bold;
+                      display: inline-block;
+                      border-radius: 4px;
+                    "
+                    >View</a
+                  >
+                </p>
+                <p
+                  style="
+                    margin-top: 30px;
+                    font-size: 16px;
+                    line-height: 1.5;
+                    color: #333333;
+                  "
+                >
+                  Best regards,<br />
+                  MINT SUPPORT TEAM
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

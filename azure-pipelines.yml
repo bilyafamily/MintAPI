@@ -1,0 +1,47 @@
+trigger:
+- master  
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  azureContainerRepository: 'nmdpraimages.azurecr.io'
+  imageName: 'support'
+  tag: 'latest'
+
+steps:
+# Step 1: Build and Push Docker Image
+- task: Docker@2
+  displayName: 'Build and Push Docker Image'
+  inputs:
+    command: 'buildAndPush'
+    containerRegistry: 'AzureContainerRegistry'
+    repository: $(imageName)
+    dockerfile: '**/Dockerfile'
+    tags: |
+      $(tag)
+    arguments: '--platform linux/amd64'
+
+# Step 2: List ACR Repositories and Tags for Debugging
+- task: AzureCLI@2
+  displayName: 'List ACR Repositories and Tags'
+  inputs:
+    azureSubscription: 'AzureServiceConnection'
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      az acr repository list --name $(azureContainerRepository) --output table
+      az acr repository show-tags --name $(azureContainerRepository) --repository $(imageName) --output table
+
+# Step 3: Update Azure Container App
+- task: AzureCLI@2
+  displayName: 'Update Azure Container App'
+  inputs:
+    azureSubscription: 'AzureServiceConnection'
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      az containerapp update \
+        --name support \
+        --resource-group nmdpra-container-rg \
+        --image $(azureContainerRepository)/$(imageName):$(tag)
