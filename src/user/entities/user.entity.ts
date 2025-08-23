@@ -49,4 +49,7 @@ export class User {
 
   @OneToMany(() => Computer, (computer) => computer.user)
   computers: Computer[];
+
+  @Column({ type: 'simple-array', nullable: true })
+  roles: string[];
 }

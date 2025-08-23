@@ -257,7 +257,7 @@ export class AuthenticationService {
           unique_name: user.email,
           oid: user.id,
           name: `${user.firstname} ${user.lastname}`,
-          roles: [],
+          roles: [...user.roles],
         },
       ),
 

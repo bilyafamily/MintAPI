@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, IsNull, Not, Repository } from 'typeorm';
 import { UpdateTicketStatusDto } from '../../dto/update-ticket-status.dto';
 import { Ticket } from '../../entities/ticket.entity';
 import { Agent } from '../../../agent/entities/agent.entity';
@@ -21,15 +21,20 @@ import { ResolveTicketDto } from '../../../ticket/dto/resolve-ticket.dto';
 import { Comment } from '../../../comment/entities/comment.entity';
 import { TicketStatus } from '../../../types/ticketStatus.enum';
 import { EmailService } from '../../../email/email.service';
-// import { TicketResolutionEmailDto } from '../../../email/ticket-resoution.dto';
-// import { EmailInterface } from 'src/email/email.interface';
-// import { getResolutionEmailBody } from 'src/utils/email.tempate';
-import { Location } from '../../../location/entities/location.entity';
+
 import { HelpdeskDesk } from '../../../ticket/dto/ticket-desk.enum';
 import { UserSummary } from '../../../ticket/dto/user.summary.dto';
 import { TicketAgentHistory } from 'src/ticket/entities/ticketAgentHistory.entity';
 import { SubcategoryService } from 'src/subcategory/subcategory.service';
 import { RateTicketDto } from 'src/ticket/dto/rate-ticket.dto';
+import * as moment from 'moment';
+import { Category } from 'src/category/entities/category.entity';
+import {
+  AgentStats,
+  ResponseTimeData,
+  SatisfactionData,
+  TicketData,
+} from 'src/types/ticket';
 
 @Injectable()
 export class TicketService {
@@ -47,8 +52,8 @@ export class TicketService {
     @InjectRepository(Agent)
     private readonly agentRepository: Repository<Agent>,
 
-    @InjectRepository(Location)
-    private readonly locationRepository: Repository<Location>,
+    @InjectRepository(Category)
+    private readonly categoryRepository: Repository<Category>,
 
     @InjectRepository(EscalationHistory)
     private readonly escalationHistoryRepository: Repository<EscalationHistory>,
@@ -212,6 +217,7 @@ export class TicketService {
   async findAll(filters?: any): Promise<Ticket[]> {
     return this.ticketRepository.find({
       where: filters,
+      relations: ['user'],
       order: { createdAt: 'desc' },
     });
   }
@@ -424,7 +430,7 @@ export class TicketService {
     const agentHistory = this.ticketAgentHistoryRepository.create({
       agent: assignedAgent.email.toLowerCase(),
       assignedBy: userEmail.toLowerCase(),
-      message: `Ticket was assigned to ${assignedAgent.email} by ${userEmail.toLowerCase()}`,
+      message: `Ticket was assigned auto assigned to ${assignedAgent.email} by ${userEmail.toLowerCase()} at ${moment(getCurrentTime().toString()).format('LLL')}`,
       ticket: ticket,
     });
 
@@ -474,7 +480,7 @@ export class TicketService {
     const agentHistory = this.ticketAgentHistoryRepository.create({
       agent: agent.email.toLowerCase(),
       assignedBy: userEmail.toLowerCase(),
-      message: `Ticket was assigned to ${agent.email} by ${userEmail.toLowerCase()}`,
+      message: `Ticket was auto assigned to ${agent.email} by ${userEmail.toLowerCase()} at ${getCurrentTime().toLocaleString()}`,
       ticket: ticket,
     });
 
@@ -516,15 +522,14 @@ export class TicketService {
 
     await this.ticketRepository.save(ticket);
 
-    const payload = {
-      agent: newAgent.email.toLowerCase(),
-      assignedBy: userEmail.toLowerCase(),
-      message: `Ticket was assigned to ${newAgent.email} by ${userEmail.toLowerCase()}`,
-      ticket: ticket,
-    };
+    const ticketAgentHisotory = new TicketAgentHistory();
+    ticketAgentHisotory.agent = userEmail.toLowerCase();
+    ticketAgentHisotory.assignedAt = getCurrentTime();
+    ticketAgentHisotory.assignedBy = userEmail.toLowerCase();
+    ticketAgentHisotory.message = `TIcket was reassigned by to ${newAgent.email} by ${userEmail.toLowerCase()} at ${getCurrentTime().toLocaleString()}`;
+    ticketAgentHisotory.ticket = ticket;
 
-    const agentHistory = this.ticketAgentHistoryRepository.create(payload);
-    await this.ticketAgentHistoryRepository.save(agentHistory);
+    await this.ticketAgentHistoryRepository.save(ticketAgentHisotory);
 
     return ticket;
   }
@@ -551,120 +556,82 @@ export class TicketService {
   }
 
   async escalateTicket(
+    ticketId: string,
     payload: EscalateTicketDto,
-    agentEmail: string,
   ): Promise<Ticket> {
-    const ticket = await this.ticketRepository.findOne({
-      where: { id: payload.ticketId },
-      relations: ['agent'],
-    });
-
-    if (!ticket) {
-      throw new NotFoundException('Ticket not found');
-    }
-
-    const agent = await this.agentRepository.findOne({
-      where: {
-        email: agentEmail,
-      },
-    });
-
-    // if (ticket.agentId !== agent.id) {
-    //   throw new ForbiddenException('You are not assigned to this ticket');
-    // }
-
-    const currentTier = ticket.escalationTier;
-    const nextTier = currentTier + 1;
-    let nextTierAgents: any;
-
-    if (ticket.escalationTier === 0) {
-      // escalate the tier to the helpdesk agent in Abuja
-      nextTierAgents = await this.agentRepository.find({
-        where: {
-          tierLevel: 1,
-          isActive: true,
-        },
-        order: {
-          ticket_count: 'asc',
-        },
-      });
-    } else if (payload.tierLevel === 2 && !payload.agentType) {
-      nextTierAgents = await this.agentRepository.find({
-        where: {
-          tierLevel: 2,
-          isActive: true,
-        },
-        order: {
-          ticket_count: 'asc',
-        },
-      });
-    } else if (payload.tierLevel === 3) {
-      nextTierAgents = await this.agentRepository.find({
-        where: {
-          tierLevel: payload.tierLevel,
-          agentType: payload.agentType,
-
-          isActive: true,
-        },
-        order: {
-          ticket_count: 'asc',
-        },
-      });
-    } else if (payload.tierLevel === 4) {
-      nextTierAgents = await this.agentRepository.find({
-        where: {
-          tierLevel: payload.tierLevel,
-          isActive: true,
-        },
-        order: {
-          ticket_count: 'asc',
-        },
-      });
-    }
-
-    //Escalate to the team leads
-    if (nextTierAgents.length === 0) {
-      const getTierTwoAgents = await this.agentRepository.find({
-        where: {
-          tierLevel: 2,
-          isActive: true,
-        },
-        order: {
-          ticket_count: 'asc',
-        },
-      });
-      nextTierAgents = getTierTwoAgents[0];
-      ticket.agent = null;
-      // throw new ConflictException('No agents available in the next tier');
-    }
-
-    // Assign the ticket to the next available agent
-    const nextAgent = nextTierAgents[0];
-
-    let desk = '';
-    if (nextTier === 1) {
-      desk = HelpdeskDesk.Helpdesk;
-    } else if (nextTier === 2) {
-      desk = HelpdeskDesk.HelpdeskSupervisor;
-    } else if (nextTier === 3 && payload.agentType === 'sme') {
-      desk = HelpdeskDesk.SME;
-    } else if (nextTier === 3 && payload.agentType === 'vendor') {
-      desk = HelpdeskDesk.Vendor;
-    }
-
-    ticket.agent = nextAgent;
-    ticket.escalationTier = nextTier;
-    ticket.currentDesk = desk;
-    ticket.assignedAt = new Date();
-
-    const now = new Date();
-    const duration = ticket.assignedAt
-      ? now.getTime() - ticket.assignedAt.getTime()
-      : 0;
-
-    await this.ticketRepository.save(ticket);
-
     try {
+      const ticket = await this.ticketRepository.findOne({
+        where: { id: ticketId },
+      });
+
+      if (!ticket) {
+        throw new NotFoundException('Ticket not found');
+      }
+
+      if (ticket.escalationTier >= 3) {
+        throw new BadRequestException('Ticket is already on the heighest tier');
+      }
+
+      const agent = await this.agentRepository.findOne({
+        where: {
+          email: payload.escalatedBy.toLowerCase(),
+        },
+      });
+
+      const currentTier = ticket.escalationTier;
+      const nextTier = currentTier + 1;
+      let nextAgent: Agent;
+
+      const nextTierAgents = await this.agentRepository.find({
+        where: {
+          tierLevel: nextTier,
+          isActive: true,
+        },
+        order: {
+          ticket_count: 'asc',
+        },
+      });
+
+      //Escalate to the team leads
+      if (nextTierAgents.length > 0) {
+        nextAgent = nextTierAgents[0];
+      } else {
+        const getTierTwoAgents = await this.agentRepository.find({
+          where: { tierLevel: 2, isActive: true },
+          order: { ticket_count: 'asc' },
+        });
+        nextAgent = getTierTwoAgents[0];
+      }
+
+      if (!nextAgent) {
+        console.log('nextAgent', nextAgent);
+        throw new BadRequestException('No available agent to escalate to');
+      }
+
+      nextAgent.ticket_count += 1;
+      await this.agentRepository.save(nextAgent);
+
+      let desk = '';
+      if (nextTier === 1) {
+        desk = HelpdeskDesk.Helpdesk;
+      } else if (nextTier === 2) {
+        desk = HelpdeskDesk.HelpdeskSupervisor;
+      } else {
+        desk = HelpdeskDesk.Vendor;
+      }
+
+      const now = getCurrentTime();
+      const duration = ticket.assignedAt
+        ? now.getTime() - ticket.assignedAt.getTime()
+        : 0;
+
+      ticket.agent = nextAgent;
+      ticket.escalationTier = nextTier;
+      ticket.currentDesk = desk;
+      ticket.assignedAt = now;
+
+      await this.ticketRepository.save(ticket);
+
       const escalation = this.escalationHistoryRepository.create({
         escalatedBy: agent.email,
         escalatedTo: nextAgent.email,
@@ -672,22 +639,34 @@ export class TicketService {
         duration,
         time: now,
         ticketId: ticket.id,
+        ticket: ticket,
         tier: nextTier,
       });
-
       await this.escalationHistoryRepository.save(escalation);
+
+      // const ticketAgentHisotory = new TicketAgentHistory();
+      // ticketAgentHisotory.agent = nextAgent.email;
+      // ticketAgentHisotory.assignedAt = getCurrentTime();
+      // ticketAgentHisotory.assignedBy = payload.escalatedBy;
+      // ticketAgentHisotory.message = payload.comment;
+      // ticketAgentHisotory.ticket = ticket;
+
+      // const saveData = [
+      // await this.ticketAgentHistoryRepository.save(ticketAgentHisotory);
+      // ];
+
+      // await Promise.all(saveData);
+      // Optional: Send notification to the next agent
+      this.emailNotificationService.sendNotification({
+        agentId: nextAgent.id,
+        message: `A new ticket has been escalated to you: ${ticket.title}`,
+      });
+
+      return ticket;
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
-    // Log escalation
-
-    // Optional: Send notification to the next agent
-    this.emailNotificationService.sendNotification({
-      agentId: nextAgent.id,
-      message: `A new ticket has been escalated to you: ${ticket.title}`,
-    });
-
-    return ticket;
   }
 
   async resolveTicket(payload: ResolveTicketDto): Promise<Ticket> {
@@ -751,6 +730,394 @@ export class TicketService {
 
       return await this.agentRepository.save(agent);
     }
+  }
+
+  async getDashboardStats() {
+    // Total Tickets: Count of all tickets
+    const totalTickets = await this.ticketRepository.count();
+
+    // Active Users: Count of active agents
+    const activeUsers = await this.agentRepository.count({
+      where: { isActive: true },
+    });
+    // console.log('Active Users:', activeUsers);
+
+    // Resolved Tickets: Count of tickets with non-null resolvedAt
+    const resolvedTickets = await this.ticketRepository.count({
+      where: { resolvedAt: Not(IsNull()) },
+    });
+    // console.log('Resolved Tickets:', resolvedTickets);
+
+    // Resolution Rate: (resolved / total) * 100, rounded to 2 decimal places
+    const resolutionRate =
+      totalTickets > 0
+        ? ((resolvedTickets / totalTickets) * 100).toFixed(2)
+        : '0.00';
+    // console.log('Resolution Rate Calculation:', { resolvedTickets, totalTickets, resolutionRate });
+
+    // Average Response Time: Average of resolutionDuration (converted from milliseconds to hours)
+    const avgResponseQuery = await this.ticketRepository
+      .createQueryBuilder('ticket')
+      .select('AVG(ticket.resolutionDuration)', 'avg')
+      .where('ticket.resolutionDuration IS NOT NULL')
+      .andWhere('ticket.resolutionDuration > 0') // Exclude zero or negative durations
+      .getRawOne();
+    // Convert milliseconds to hours (1 ms = 1/3600000 hours)
+    const averageResponseTime = avgResponseQuery?.avg
+      ? (parseFloat(avgResponseQuery.avg) / 3600000).toFixed(2) // Convert ms to hours
+      : '0.00';
+    // console.log('Average Response Time (ms):', avgResponseQuery?.avg, 'Converted to hours:', averageResponseTime);
+
+    // Monthly Data: For the last 6 months (tickets created, resolved, avg resolution time in hours)
+    const monthlyData = [];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    const currentDate = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const monthDate = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth() - i,
+        1,
+      );
+      const monthName = months[monthDate.getMonth()];
+      const start = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+      const end = new Date(
+        monthDate.getFullYear(),
+        monthDate.getMonth() + 1,
+        0,
+        23,
+        59,
+        59,
+      );
+
+      // Tickets created in the month
+      const tickets = await this.ticketRepository.count({
+        where: { createdAt: Between(start, end) },
+      });
+
+      // Tickets resolved in the month
+      const resolved = await this.ticketRepository.count({
+        where: { resolvedAt: Between(start, end) },
+      });
+
+      // Avg resolution time for tickets resolved in the month (in hours)
+      const avgTimeQuery = await this.ticketRepository
+        .createQueryBuilder('ticket')
+        .select('AVG(ticket.resolutionDuration)', 'avg')
+        .where('ticket.resolvedAt BETWEEN :start AND :end', { start, end })
+        .andWhere('ticket.resolutionDuration IS NOT NULL')
+        .andWhere('ticket.resolutionDuration > 0')
+        .getRawOne();
+      const avgTime = avgTimeQuery?.avg
+        ? (parseFloat(avgTimeQuery.avg) / 3600000).toFixed(1)
+        : '0.0';
+
+      monthlyData.push({ month: monthName, tickets, resolved, avgTime });
+    }
+
+    // Category Data: Distribution of tickets by category with sample colors
+    const categories = await this.categoryRepository.find();
+    const categoryData = [];
+    const sampleColors = [
+      '#ef4444',
+      '#3b82f6',
+      '#10b981',
+      '#f59e0b',
+      '#8b5cf6',
+      '#eab308',
+    ];
+
+    for (let i = 0; i < categories.length; i++) {
+      const category = categories[i];
+      const value = await this.ticketRepository.count({
+        where: { categoryId: category.id },
+      });
+      if (value > 0) {
+        // Only include categories with tickets
+        categoryData.push({
+          name: category.name,
+          value,
+          color: sampleColors[i % sampleColors.length],
+        });
+      }
+    }
+
+    return {
+      totalTickets,
+      activeUsers,
+      resolutionRate: parseFloat(resolutionRate),
+      averageResponseTime: parseFloat(averageResponseTime),
+      monthlyData,
+      categoryData,
+    };
+  }
+
+  async getAgentStats(): Promise<AgentStats[]> {
+    const agents = await this.agentRepository.find();
+    const result: AgentStats[] = [];
+    const months = ['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
+    const currentYear = 2025;
+
+    for (const agent of agents) {
+      const ticketData: TicketData[] = [];
+      const responseTimeData: ResponseTimeData[] = [];
+
+      // Query ticket data and response time for each month
+      for (let i = 0; i < months.length; i++) {
+        const monthIndex = 2 + i; // March (2) to August (7)
+        const start = new Date(currentYear, monthIndex, 1);
+        const end = new Date(currentYear, monthIndex + 1, 0, 23, 59, 59);
+
+        // Ticket counts: resolved, pending, escalated
+        const resolved = await this.ticketRepository.count({
+          where: {
+            agentId: agent.id,
+            status: 'resolved',
+            resolvedAt: Between(start, end),
+          },
+        });
+
+        const pending = await this.ticketRepository.count({
+          where: {
+            agentId: agent.id,
+            status: 'pending',
+            createdAt: Between(start, end),
+          },
+        });
+
+        const escalated = await this.ticketRepository.count({
+          where: {
+            agentId: agent.id,
+            is_escalated: true,
+            createdAt: Between(start, end),
+          },
+        });
+
+        ticketData.push({
+          month: months[i],
+          resolved,
+          pending,
+          escalated,
+        });
+
+        // Average response time (in hours) for resolved tickets
+        const avgTimeQuery = await this.ticketRepository
+          .createQueryBuilder('ticket')
+          .select('AVG(ticket.resolutionDuration)', 'avg')
+          .where('ticket.agentId = :agentId', { agentId: agent.id })
+          .andWhere('ticket.resolvedAt BETWEEN :start AND :end', { start, end })
+          .andWhere('ticket.resolutionDuration IS NOT NULL')
+          .andWhere('ticket.resolutionDuration > 0')
+          .getRawOne();
+        const avgTime = avgTimeQuery?.avg
+          ? parseFloat(avgTimeQuery.avg) / 3600000
+          : 0; // Convert ms to hours
+
+        responseTimeData.push({
+          month: months[i],
+          avgTime: parseFloat(avgTime.toFixed(1)),
+        });
+      }
+
+      // Satisfaction data: Map ratings to categories
+      const ratings = await this.ticketRepository
+        .createQueryBuilder('ticket')
+        .select('ticket.rating, COUNT(*) as count')
+        .where('ticket.agentId = :agentId', { agentId: agent.id })
+        .andWhere('ticket.rating IS NOT NULL')
+        .groupBy('ticket.rating')
+        .getRawMany();
+
+      const satisfactionData: SatisfactionData[] = [
+        { name: 'Excellent', value: 0, color: '#10b981' },
+        { name: 'Good', value: 0, color: '#3b82f6' },
+        { name: 'Average', value: 0, color: '#f59e0b' },
+        { name: 'Poor', value: 0, color: '#ef4444' },
+      ];
+
+      ratings.forEach((rating) => {
+        const count = parseInt(rating.count);
+        if (rating.rating === 5)
+          satisfactionData[0].value += count; // Excellent
+        else if (rating.rating === 4)
+          satisfactionData[1].value += count; // Good
+        else if (rating.rating === 3)
+          satisfactionData[2].value += count; // Average
+        else if (rating.rating <= 2) satisfactionData[3].value += count; // Poor
+      });
+
+      // Additional statistics
+      const totalTickets = await this.ticketRepository.find({
+        where: { agentId: agent.id },
+      });
+
+      const avgRatingQuery = await this.ticketRepository
+        .createQueryBuilder('ticket')
+        .select('AVG(ticket.rating)', 'avg')
+        .where('ticket.agentId = :agentId', { agentId: agent.id })
+        .andWhere('ticket.rating IS NOT NULL')
+        .getRawOne();
+      const averageRating = avgRatingQuery?.avg
+        ? parseFloat(avgRatingQuery.avg.toFixed(1))
+        : 0;
+
+      result.push({
+        agentId: agent.id,
+        agentEmail: agent.email,
+        ticketData,
+        responseTimeData,
+        satisfactionData,
+        averageRating,
+        totalTickets: totalTickets.length,
+        resolved: totalTickets.map((x) => x.status === TicketStatus.Resolved)
+          .length,
+        pending: totalTickets.map((x) => x.status === TicketStatus.InProgress)
+          .length,
+        escalated: totalTickets.map((x) => x.status === TicketStatus.Resolved)
+          .length,
+      });
+    }
+
+    return result;
+  }
+
+  async getAgentByIdStats(agentId: string): Promise<AgentStats> {
+    const agent = await this.agentRepository.findOne({
+      where: { id: agentId.toLowerCase() },
+    });
+
+    const months = ['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
+    const currentYear = 2025;
+
+    const ticketData: TicketData[] = [];
+    const responseTimeData: ResponseTimeData[] = [];
+
+    // Query ticket data and response time for each month
+    for (let i = 0; i < months.length; i++) {
+      const monthIndex = 2 + i; // March (2) to August (7)
+      const start = new Date(currentYear, monthIndex, 1);
+      const end = new Date(currentYear, monthIndex + 1, 0, 23, 59, 59);
+
+      // Ticket counts: resolved, pending, escalated
+      const resolved = await this.ticketRepository.count({
+        where: {
+          agentId: agent.id,
+          status: 'resolved',
+          resolvedAt: Between(start, end),
+        },
+      });
+
+      const pending = await this.ticketRepository.count({
+        where: {
+          agentId: agent.id,
+          status: 'pending',
+          createdAt: Between(start, end),
+        },
+      });
+
+      const escalated = await this.ticketRepository.count({
+        where: {
+          agentId: agent.id,
+          is_escalated: true,
+          createdAt: Between(start, end),
+        },
+      });
+
+      ticketData.push({
+        month: months[i],
+        resolved,
+        pending,
+        escalated,
+      });
+
+      // Average response time (in hours) for resolved tickets
+      const avgTimeQuery = await this.ticketRepository
+        .createQueryBuilder('ticket')
+        .select('AVG(ticket.resolutionDuration)', 'avg')
+        .where('ticket.agentId = :agentId', { agentId: agent.id })
+        .andWhere('ticket.resolvedAt BETWEEN :start AND :end', { start, end })
+        .andWhere('ticket.resolutionDuration IS NOT NULL')
+        .andWhere('ticket.resolutionDuration > 0')
+        .getRawOne();
+      const avgTime = avgTimeQuery?.avg
+        ? parseFloat(avgTimeQuery.avg) / 3600000
+        : 0; // Convert ms to hours
+
+      responseTimeData.push({
+        month: months[i],
+        avgTime: parseFloat(avgTime.toFixed(1)),
+      });
+    }
+
+    // Satisfaction data: Map ratings to categories
+    const ratings = await this.ticketRepository
+      .createQueryBuilder('ticket')
+      .select('ticket.rating, COUNT(*) as count')
+      .where('ticket.agentId = :agentId', { agentId: agent.id })
+      .andWhere('ticket.rating IS NOT NULL')
+      .groupBy('ticket.rating')
+      .getRawMany();
+
+    const satisfactionData: SatisfactionData[] = [
+      { name: 'Excellent', value: 0, color: '#10b981' },
+      { name: 'Good', value: 0, color: '#3b82f6' },
+      { name: 'Average', value: 0, color: '#f59e0b' },
+      { name: 'Poor', value: 0, color: '#ef4444' },
+    ];
+
+    ratings.forEach((rating) => {
+      const count = parseInt(rating.count);
+      if (rating.rating === 5)
+        satisfactionData[0].value += count; // Excellent
+      else if (rating.rating === 4)
+        satisfactionData[1].value += count; // Good
+      else if (rating.rating === 3)
+        satisfactionData[2].value += count; // Average
+      else if (rating.rating <= 2) satisfactionData[3].value += count; // Poor
+    });
+
+    // Additional statistics
+    const totalTickets = await this.ticketRepository.find({
+      where: { agentId: agent.id },
+    });
+
+    const avgRatingQuery = await this.ticketRepository
+      .createQueryBuilder('ticket')
+      .select('AVG(ticket.rating)', 'avg')
+      .where('ticket.agentId = :agentId', { agentId: agent.id })
+      .andWhere('ticket.rating IS NOT NULL')
+      .getRawOne();
+    const averageRating = avgRatingQuery?.avg
+      ? parseFloat(avgRatingQuery.avg.toFixed(1))
+      : 0;
+
+    return {
+      agentId: agent.id,
+      agentEmail: agent.email,
+      ticketData,
+      responseTimeData,
+      satisfactionData,
+      averageRating,
+      totalTickets: totalTickets.length,
+      resolved: totalTickets.filter((x) => x.status === TicketStatus.Resolved)
+        .length,
+      pending: totalTickets.filter(
+        (x) => x.status === TicketStatus.InProgress || x.status === 'pending',
+      ).length,
+      escalated: totalTickets.filter((x) => x.is_escalated).length,
+    };
   }
 
   // @Cron(CronExpression.EVERY_4_HOURS)

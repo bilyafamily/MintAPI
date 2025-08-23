@@ -32,6 +32,9 @@ export class Ticket {
   @Column({ nullable: true })
   ticketRef: string;
 
+  @Column({ nullable: true })
+  locationId: string;
+
   @ManyToOne(() => Location, { eager: true })
   @JoinColumn({ name: 'locationId' })
   location: Location;

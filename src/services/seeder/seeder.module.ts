@@ -9,6 +9,7 @@ import { Sector } from './sector.entity';
 import { Subcategory } from '../../subcategory/entities/subcategory.entity';
 import { Agent } from '../../agent/entities/agent.entity';
 import { Department } from '../../common/entities/Department';
+import { Ticket } from '../../ticket/entities/ticket.entity';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { Department } from '../../common/entities/Department';
       Subcategory,
       Agent,
       Department,
+      Ticket,
     ]),
   ],
   providers: [SeederService],

@@ -29,9 +29,10 @@ import { ResolveTicketDto } from './dto/resolve-ticket.dto';
 import { UserSummary } from './dto/user.summary.dto';
 import { RateTicketDto } from './dto/rate-ticket.dto';
 import { Agent } from '../agent/entities/agent.entity';
+import { AgentStats } from 'src/types/ticket';
 
+@Auth(AuthType.ApiKey, AuthType.None)
 @Controller('tickets')
-@Auth(AuthType.ApiKey)
 export class TicketController {
   constructor(private readonly ticketService: TicketService) {}
 
@@ -70,7 +71,17 @@ export class TicketController {
 
   @Get('analytics')
   async getAnalytics(): Promise<any> {
-    return this.ticketService.getAnalytics();
+    return this.ticketService.getDashboardStats();
+  }
+
+  @Get('agents/analytics')
+  async getAgentAnalytics(): Promise<AgentStats[]> {
+    return this.ticketService.getAgentStats();
+  }
+
+  @Get(':id/agents/analytics')
+  async getAgentByIdAnalytics(@Param('id') id: string): Promise<AgentStats> {
+    return this.ticketService.getAgentByIdStats(id.toLowerCase());
   }
 
   @Get('my-tickets')
@@ -122,12 +133,12 @@ export class TicketController {
     return this.ticketService.reassignTicket(id, body.agentId, body.assignedBy);
   }
 
-  @Post('escalate')
+  @Post(':id/escalate')
   async escalateTicket(
-    @ActiveUser() user: ActiveUserData,
+    @Param('id') id: string,
     @Body() payload: EscalateTicketDto,
   ): Promise<Ticket> {
-    return this.ticketService.escalateTicket(payload, user.unique_name);
+    return this.ticketService.escalateTicket(id, payload);
   }
 
   @Get('myDesk')
