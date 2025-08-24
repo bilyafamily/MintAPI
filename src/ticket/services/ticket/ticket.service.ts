@@ -325,7 +325,7 @@ export class TicketService {
 
     ticket.status = updateDto.status;
 
-    if (updateDto.status === 'Resolved') {
+    if (updateDto.status === 'resolved') {
       ticket.resolvedAt = new Date();
 
       if (new Date() > ticket.sla_deadline) {

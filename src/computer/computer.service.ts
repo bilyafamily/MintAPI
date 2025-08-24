@@ -91,7 +91,15 @@ export class ComputerService {
   async findOne(id: string): Promise<Computer> {
     const computer = await this.computersRepository.findOne({
       where: { id },
-      relations: ['model', 'department', 'user'],
+      relations: [
+        'model',
+        'department',
+        'user',
+        'assignmentHistory',
+        'assignmentHistory.user',
+        'maintenanceRecords',
+        'maintenanceRecords.user',
+      ],
     });
 
     if (!computer) {
