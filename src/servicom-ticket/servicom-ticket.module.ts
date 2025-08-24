@@ -8,6 +8,7 @@ import { SerivcomAttachment } from '../servicom-attachment/entities/servicom-att
 import { User } from '../user/entities/user.entity';
 import { EmailService } from '../email/email.service';
 import { ServicomSme } from '../servicom-sme/entities/servicom-sme.entity';
+import { GraphService } from '../common/graph.service';
 
 @Module({
   imports: [
@@ -20,6 +21,6 @@ import { ServicomSme } from '../servicom-sme/entities/servicom-sme.entity';
     ]),
   ],
   controllers: [ServicomTicketController],
-  providers: [ServicomTicketService, EmailService],
+  providers: [ServicomTicketService, EmailService, GraphService],
 })
 export class ServicomTicketModule {}

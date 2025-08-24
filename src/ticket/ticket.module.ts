@@ -17,7 +17,8 @@ import { EmailService } from '../email/email.service';
 import { Location } from '../location/entities/location.entity';
 import { TicketAgentHistory } from './entities/ticketAgentHistory.entity';
 import { Subcategory } from '../subcategory/entities/subcategory.entity';
-import { SubcategoryService } from 'src/subcategory/subcategory.service';
+import { SubcategoryService } from '../subcategory/subcategory.service';
+import { GraphService } from '../common/graph.service';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { SubcategoryService } from 'src/subcategory/subcategory.service';
     EmailNotificationService,
     EmailService,
     SubcategoryService,
+    GraphService,
   ],
 })
 export class TicketModule {}

@@ -10,6 +10,10 @@ import { Subcategory } from '../../subcategory/entities/subcategory.entity';
 import { Agent } from '../../agent/entities/agent.entity';
 import { Department } from '../../common/entities/Department';
 import { Ticket } from '../../ticket/entities/ticket.entity';
+import { PcModel } from '../../pc-model/entities/pc-model.entity';
+import { Computer } from '../../computer/entities/computer.entity';
+import { ComputerAssignmentHistory } from '../../computer/entities/assignment-history.entity';
+import { ComputerMaintenance } from '../../computer/entities/computer-maintenance.entity';
 
 @Module({
   imports: [
@@ -23,6 +27,10 @@ import { Ticket } from '../../ticket/entities/ticket.entity';
       Agent,
       Department,
       Ticket,
+      PcModel,
+      Computer,
+      ComputerAssignmentHistory,
+      ComputerMaintenance,
     ]),
   ],
   providers: [SeederService],

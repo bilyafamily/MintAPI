@@ -34,6 +34,7 @@ import { ServicomTicketModule } from './servicom-ticket/servicom-ticket.module';
 import { ServicomAttachmentModule } from './servicom-attachment/servicom-attachment.module';
 import { ServicomSmeModule } from './servicom-sme/servicom-sme.module';
 import { ServicomTicketHistoryModule } from './servicom-ticket-history/servicom-ticket-history.module';
+import { GraphService } from './common/graph.service';
 // import { SeederService } from './services/seeder/seeder.service';
 
 @Module({
@@ -98,6 +99,7 @@ import { ServicomTicketHistoryModule } from './servicom-ticket-history/servicom-
     EmailService,
     EmailNotificationService,
     NotificationGateway,
+    GraphService,
   ],
 })
 export class AppModule {

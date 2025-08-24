@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { EmailDto } from './email.dto';
 import { MailerService } from '@nestjs-modules/mailer';
 import { TicketResolutionEmailDto } from './ticket-resoution.dto';
@@ -7,10 +7,10 @@ import axios from 'axios';
 import { TrainingData } from '../types/trainingData';
 import { ServicomTicket } from '../servicom-ticket/entities/servicom-ticket.entity';
 import { Ticket } from 'src/ticket/entities/ticket.entity';
-// import { join } from 'path';
 
 @Injectable()
 export class EmailService {
+  private readonly logger = new Logger(EmailService.name);
   constructor(private mailerService: MailerService) {
     // console.log('Template directory:', join(__dirname, 'templates'));
   }

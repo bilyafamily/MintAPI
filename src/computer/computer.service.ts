@@ -77,7 +77,13 @@ export class ComputerService {
 
   async findAll(): Promise<Computer[]> {
     return await this.computersRepository.find({
-      relations: ['model', 'department', 'user'],
+      relations: [
+        'department',
+        'model',
+        'user',
+        'assignmentHistory',
+        'assignmentHistory.user',
+      ],
       order: { createdAt: 'DESC' },
     });
   }

@@ -9,9 +9,9 @@ import {
   // LOCATIONS,
   // SUBCATEGORIES,
   // USERS,
+  // DEPARTMENTS,
   REGIONS,
   SECTORS,
-  DEPARTMENTS,
 } from '../../data/seed.data';
 import { User } from '../../user/entities/user.entity';
 import { Location } from '../../location/entities/location.entity';
@@ -21,6 +21,10 @@ import { Subcategory } from '../../subcategory/entities/subcategory.entity';
 import { Agent } from '../../agent/entities/agent.entity';
 import { Department } from 'src/common/entities/Department';
 import { Ticket } from 'src/ticket/entities/ticket.entity';
+import { Computer } from 'src/computer/entities/computer.entity';
+import { PcModel } from 'src/pc-model/entities/pc-model.entity';
+import { ComputerMaintenance } from 'src/computer/entities/computer-maintenance.entity';
+import { ComputerAssignmentHistory } from 'src/computer/entities/assignment-history.entity';
 
 @Injectable()
 export class SeederService {
@@ -51,9 +55,22 @@ export class SeederService {
   @InjectRepository(Ticket)
   private readonly ticketRepository: Repository<Ticket>;
 
+  @InjectRepository(Computer)
+  private readonly computerRepository: Repository<Computer>;
+
+  @InjectRepository(PcModel)
+  private readonly pcModelRepository: Repository<PcModel>;
+
+  @InjectRepository(ComputerMaintenance)
+  private readonly maintenanceRepository: Repository<ComputerMaintenance>;
+
+  @InjectRepository(ComputerAssignmentHistory)
+  private readonly assignmentHistoryRepository: Repository<ComputerAssignmentHistory>;
+
   async seed() {
+    await this.seedComputers();
     // await this.seedTickets();
-    await this.departments();
+    // await this.departments();
     // await this.categories();
     // await this.subcategories();
     // await this.users();
@@ -118,13 +135,13 @@ export class SeederService {
   //   }
   // }
 
-  async departments() {
-    const data = await this.departmentRepository.find();
+  // async departments() {
+  //   const data = await this.departmentRepository.find();
 
-    if (data.length <= 0) {
-      await this.departmentRepository.save(DEPARTMENTS);
-    }
-  }
+  //   if (data.length <= 0) {
+  //     await this.departmentRepository.save(DEPARTMENTS);
+  //   }
+  // }
 
   async seedTickets() {
     try {
@@ -316,6 +333,241 @@ export class SeederService {
 
       return {
         message: `Successfully seeded ${tickets.length} tickets and related entities.`,
+      };
+    } catch (error) {
+      console.log(error);
+      throw new BadRequestException(error);
+    }
+  }
+
+  async seedComputers() {
+    try {
+      await this.assignmentHistoryRepository.delete({});
+      await this.maintenanceRepository.delete({});
+      await this.computerRepository.delete({});
+      await this.departmentRepository.delete({});
+      await this.pcModelRepository.delete({});
+      // await this.userRepository.delete({});
+
+      // Seed Departments
+      const departments = [
+        {
+          id: faker.string.uuid(),
+          name: 'IT',
+          description: 'Information Technology Department',
+        },
+        {
+          id: faker.string.uuid(),
+          name: 'HR',
+          description: 'Human Resources Department',
+        },
+        {
+          id: faker.string.uuid(),
+          name: 'Finance',
+          description: 'Finance and Accounting Department',
+        },
+        {
+          id: faker.string.uuid(),
+          name: 'Marketing',
+          description: 'Marketing and Sales Department',
+        },
+        {
+          id: faker.string.uuid(),
+          name: 'Operations',
+          description: 'Operations and Logistics Department',
+        },
+      ];
+      await this.departmentRepository.save(departments);
+
+      // Seed PC Models
+      const pcModels = [
+        { id: faker.string.uuid(), name: 'Dell XPS 13', manufacturer: 'Dell' },
+        {
+          id: faker.string.uuid(),
+          name: 'HP EliteBook 840',
+          manufacturer: 'HP',
+        },
+        {
+          id: faker.string.uuid(),
+          name: 'Lenovo ThinkPad X1',
+          manufacturer: 'Lenovo',
+        },
+        {
+          id: faker.string.uuid(),
+          name: 'MacBook Pro 14',
+          manufacturer: 'Apple',
+        },
+        {
+          id: faker.string.uuid(),
+          name: 'Surface Laptop 4',
+          manufacturer: 'Microsoft',
+        },
+        {
+          id: faker.string.uuid(),
+          name: 'Acer Aspire 5',
+          manufacturer: 'Acer',
+        },
+        {
+          id: faker.string.uuid(),
+          name: 'ASUS ZenBook 14',
+          manufacturer: 'ASUS',
+        },
+        {
+          id: faker.string.uuid(),
+          name: 'Dell Latitude 7420',
+          manufacturer: 'Dell',
+        },
+        { id: faker.string.uuid(), name: 'HP Pavilion 15', manufacturer: 'HP' },
+        {
+          id: faker.string.uuid(),
+          name: 'Lenovo IdeaPad 3',
+          manufacturer: 'Lenovo',
+        },
+      ];
+      await this.pcModelRepository.save(pcModels);
+
+      // Seed Users
+      const users = Array.from({ length: 50 }, () => ({
+        id: faker.string.uuid(),
+        email: faker.internet.email(),
+        firstname: faker.person.firstName(),
+        lastname: faker.person.lastName(),
+      }));
+      await this.userRepository.save(users);
+
+      // Seed Computers (120 computers)
+      const computers = [];
+      const operatingSystems = [
+        'Windows 11',
+        'Windows 10',
+        'macOS Ventura',
+        'Ubuntu 22.04',
+      ];
+      const applications = [
+        'Microsoft Office',
+        'Google Chrome',
+        'Slack',
+        'Zoom',
+        'Adobe Acrobat',
+        'VS Code',
+      ];
+
+      const maintenanceDescriptions = [
+        'Replaced hard drive',
+        'Updated OS',
+        'Cleaned hardware',
+        'Repaired screen',
+        'Installed new RAM',
+      ];
+
+      for (let i = 0; i < 120; i++) {
+        const user = faker.datatype.boolean(0.5)
+          ? faker.helpers.arrayElement(users)
+          : null; // 50% chance of user assignment
+
+        const computer: Partial<Computer> = {
+          id: faker.string.uuid(),
+          name: `PC-${faker.number.int({ min: 1000, max: 9999 })}`,
+          modelId: faker.helpers.arrayElement(pcModels).id,
+          serialNumber: faker.string.alphanumeric(12).toUpperCase(), // Unique serial number
+          operatingSystem: faker.helpers.arrayElement(operatingSystems),
+          domainName: faker.datatype.boolean(0.8)
+            ? `corp-${faker.internet.domainName()}`
+            : null, // 80% have domain
+          applications: faker.helpers.arrayElements(
+            applications,
+            faker.number.int({ min: 2, max: 5 }),
+          ), // 2-5 apps
+          departmentId: faker.helpers.arrayElement(departments).id,
+          userId: user?.id || null,
+          assignedDate: user
+            ? faker.date.past({ years: 1, refDate: new Date(2025, 7, 24) })
+            : null,
+          createdAt: faker.date.past({
+            years: 2,
+            refDate: new Date(2025, 7, 24),
+          }),
+          updatedAt: faker.date.past({
+            years: 1,
+            refDate: new Date(2025, 7, 24),
+          }),
+          isActive: faker.datatype.boolean(0.9), // 90% active
+          endOfLife: new Date(new Date(2025, 7, 24).setFullYear(2025 + 5)), // Set by @BeforeInsert
+        };
+
+        computers.push(computer);
+      }
+
+      // Save computers in batches to ensure reliability
+      const batchSize = 20;
+      for (let i = 0; i < computers.length; i += batchSize) {
+        const batch = computers.slice(i, i + batchSize);
+        await this.computerRepository.save(batch);
+      }
+
+      // Verify computer count
+      const finalComputerCount = await this.computerRepository.count();
+
+      // Seed Assignment History and Maintenance for each computer
+      for (const computer of computers) {
+        // Assignment History: 1-3 past assignments per computer
+        const numAssignments = faker.number.int({ min: 1, max: 3 });
+        let currentDate = new Date(computer.createdAt); // Start from computer creation
+        const assignmentHistories = [];
+        for (let j = 0; j < numAssignments; j++) {
+          const user = faker.helpers.arrayElement(users);
+          const assignedDate = currentDate;
+          const unassignedDate = faker.date.between({
+            from: assignedDate,
+            to: new Date(2025, 7, 24),
+          });
+          const duration = Math.ceil(
+            (unassignedDate.getTime() - assignedDate.getTime()) /
+              (1000 * 60 * 60 * 24),
+          ); // Days
+          const history: Partial<ComputerAssignmentHistory> = {
+            computerId: computer.id,
+            userId: user.id,
+            assignedDate,
+            unassignedDate,
+            duration,
+            createdAt: assignedDate,
+            updatedAt: unassignedDate,
+          };
+          assignmentHistories.push(history);
+          currentDate = unassignedDate; // Next assignment starts after previous ends
+        }
+        await this.assignmentHistoryRepository.save(assignmentHistories);
+        // Maintenance Records: 0-2 per computer
+        const numMaintenances = faker.number.int({ min: 0, max: 2 });
+        const maintenances = [];
+        for (let j = 0; j < numMaintenances; j++) {
+          // Choose a random assignment to link the user at the time
+          const assignment = faker.helpers.arrayElement(assignmentHistories);
+          const maintenanceDate = faker.date.between({
+            from: assignment.assignedDate,
+            to: assignment.unassignedDate || new Date(2025, 7, 24),
+          });
+          const cost = faker.number.float({
+            min: 50,
+            max: 500,
+            fractionDigits: 2,
+          });
+          const maintenance: Partial<ComputerMaintenance> = {
+            computerId: computer.id,
+            maintenanceDate,
+            cost,
+            userId: assignment.userId,
+            description: faker.helpers.arrayElement(maintenanceDescriptions),
+            createdAt: maintenanceDate,
+            updatedAt: maintenanceDate,
+          };
+          maintenances.push(maintenance);
+        }
+        await this.maintenanceRepository.save(maintenances);
+      }
+      return {
+        message: `Successfully seeded ${finalComputerCount} computers and related entities.`,
       };
     } catch (error) {
       console.log(error);

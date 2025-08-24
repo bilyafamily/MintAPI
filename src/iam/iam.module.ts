@@ -23,6 +23,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AzureAdAuthenticationService } from './authentication/services/azure-ad-authentication.service';
 import { AuthenticationService } from './authentication/services/authentication.service';
 import { OtpAuthenticationService } from './authentication/services/otp-authentication.service';
+import { GraphService } from 'src/common/graph.service';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { OtpAuthenticationService } from './authentication/services/otp-authenti
     AzureAdAuthenticationService,
     ApiKeyService,
     EmailService,
+    GraphService,
     UserService,
     AuthenticationService,
     OtpAuthenticationService,

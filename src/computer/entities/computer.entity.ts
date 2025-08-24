@@ -9,7 +9,11 @@ import {
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  BeforeInsert,
+  OneToMany,
 } from 'typeorm';
+import { ComputerMaintenance } from './computer-maintenance.entity';
+import { ComputerAssignmentHistory } from './assignment-history.entity';
 
 @Entity('computers')
 export class Computer {
@@ -63,4 +67,24 @@ export class Computer {
 
   @Column({ default: true })
   isActive: boolean;
+
+  @Column({ type: 'datetime2' })
+  endOfLife: Date;
+
+  @OneToMany(() => ComputerMaintenance, (maintenance) => maintenance.computer, {
+    eager: true,
+  })
+  maintenanceRecords: ComputerMaintenance[];
+
+  @OneToMany(() => ComputerAssignmentHistory, (history) => history.computer, {
+    eager: true,
+  })
+  assignmentHistory: ComputerAssignmentHistory[];
+
+  @BeforeInsert()
+  setEndOfLife() {
+    const now = new Date();
+    now.setFullYear(now.getFullYear() + 5);
+    this.endOfLife = now;
+  }
 }

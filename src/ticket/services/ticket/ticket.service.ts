@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { Between, IsNull, Not, Repository } from 'typeorm';
 import { UpdateTicketStatusDto } from '../../dto/update-ticket-status.dto';
 import { Ticket } from '../../entities/ticket.entity';
@@ -28,13 +29,14 @@ import { TicketAgentHistory } from 'src/ticket/entities/ticketAgentHistory.entit
 import { SubcategoryService } from 'src/subcategory/subcategory.service';
 import { RateTicketDto } from 'src/ticket/dto/rate-ticket.dto';
 import * as moment from 'moment';
-import { Category } from 'src/category/entities/category.entity';
+import { Category } from '../../../category/entities/category.entity';
 import {
   AgentStats,
   ResponseTimeData,
   SatisfactionData,
   TicketData,
 } from 'src/types/ticket';
+import { GraphService } from '../../../common/graph.service';
 
 @Injectable()
 export class TicketService {
@@ -66,6 +68,7 @@ export class TicketService {
 
     private readonly userService: UserService,
     private readonly emailService: EmailService,
+    private readonly graphService: GraphService,
   ) {}
 
   async getUser(email: string) {
@@ -295,6 +298,7 @@ export class TicketService {
       where: {
         agentId: agent.id,
       },
+      relations: ['user'],
       order: {
         createdAt: 'asc',
       },
@@ -1118,6 +1122,41 @@ export class TicketService {
       ).length,
       escalated: totalTickets.filter((x) => x.is_escalated).length,
     };
+  }
+
+  @Cron(CronExpression.EVERY_10_HOURS)
+  async fetchAndSaveEmails() {
+    this.logger.log('Checking mailbox for new emails...');
+
+    const emails = await this.graphService.getUnreadEmails(
+      process.env.HELPDESK_EMAIL,
+    );
+
+    for (const email of emails) {
+      const user = await this.userService.findByEmail(
+        email.from?.emailAddress?.address,
+      );
+      const ticket = this.ticketRepository.create({
+        title: email.subject,
+        description: email.body?.content || '',
+        ticketRef: generateRandomString().toLocaleUpperCase(),
+        categoryId: 'f37e433e-f36b-1410-8b2e-00af017e6654',
+        locationId: 'c9e7f895-3e92-4e53-ab63-ca2234809102',
+        subcategoryId: 'fa7e433e-f36b-1410-8b2e-00af017e6654',
+        userId: user.id,
+        sla_deadline: this.calculateDueDate(0),
+        escalationTier: 0,
+        agentId: null,
+        createdAt: getCurrentTime(),
+      });
+
+      await this.ticketRepository.save(ticket);
+
+      // Mark as read so we don’t process it again
+      await this.graphService.markAsRead(process.env.HELPDESK_EMAIL, email.id);
+
+      this.logger.log(`Saved new ticket from ${user.email}: "${ticket.title}"`);
+    }
   }
 
   // @Cron(CronExpression.EVERY_4_HOURS)
